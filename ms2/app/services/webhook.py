@@ -7,6 +7,8 @@ finishes so MS1 can update the AnalysisJob status in its database.
 """
 import os
 import aiohttp
+from dotenv import load_dotenv
+load_dotenv()
 from app.config.logger import get_logger
 
 logger = get_logger("ms2.services.webhook")

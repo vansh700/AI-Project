@@ -1,13 +1,14 @@
 import os
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from app.health.health_router import router as health_router
 from app.queue.worker import create_worker
 from app.config.neo4j_client import close_driver
 from app.config.logger import get_logger
 
-load_dotenv()
 
 logger = get_logger(__name__)
 

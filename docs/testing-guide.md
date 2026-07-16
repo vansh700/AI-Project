@@ -226,7 +226,7 @@ Verify that the status of the job in PostgreSQL has successfully updated:
    - **Username**: `neo4j`
    - **Password**: `neo4j_password`
 3. In the query box at the top, run:
-   ```cypher
-   MATCH (n) RETURN n LIMIT 100
+    ```cypher
+    MATCH (n) RETURN n LIMIT 100
    ```
 4. You should see a beautiful visual map where the green `Repository` node is linked to blue `Directory` nodes (e.g. `lib`, `test`, `benchmarks`) and orange `File` nodes (e.g. `package.json`, `index.js`, `Readme.md`), confirming that the codebase has been completely mapped!

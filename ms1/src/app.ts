@@ -33,6 +33,12 @@ app.use((err: Error & { statusCode?: number }, _req: Request, res: Response, _ne
     return;
   }
 
+  if (err.name === 'MulterError' || (err as any).code === 'LIMIT_FILE_SIZE') {
+    const message = (err as any).code === 'LIMIT_FILE_SIZE' ? 'File too large. Max size allowed is 100MB.' : err.message;
+    res.status(400).json({ status: 'error', message });
+    return;
+  }
+
   if (err.statusCode) {
     res.status(err.statusCode).json({ status: 'error', message: err.message });
     return;
