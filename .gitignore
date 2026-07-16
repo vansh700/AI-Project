@@ -1,0 +1,21 @@
+# Node / Frontend / MS1
+node_modules/
+dist/
+.env
+
+# Python / MS2
+venv/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local Storage
+ms1/storage/
+storage/
+*.zip
+
+# IDEs
+.vscode/
+.idea/
+.DS_Store
