@@ -39,15 +39,15 @@ BullMQ
 ↓
 
 MS2 Worker
-
-↓
-
-Webhook
-
-↓
-
-WebSocket
-
-↓
-
-Frontend
+  ├── extract zip
+  ├── walk tree
+  ├── build Neo4j graph
+  ├── run_planner (LangGraph)
+  ├── run_execution (Docker sandbox)
+  ├── run_security_scan (pattern + sensitive file + auth probe)
+  └── webhook → MS1
+        ├── planSummary
+        ├── executionSummary
+        ├── securitySummary
+        └── reportSummary (built on COMPLETED)
+  └── WebSocket job_updated → Frontend

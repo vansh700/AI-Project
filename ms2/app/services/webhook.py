@@ -17,9 +17,25 @@ MS1_WEBHOOK_URL = os.getenv("MS1_WEBHOOK_URL", "http://localhost:3000/webhooks")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 
 
-async def notify_job_complete(job_id: str, db_job_id: str) -> None:
+async def notify_job_complete(
+    job_id: str,
+    db_job_id: str,
+    plan_summary: dict | None = None,
+    execution_summary: dict | None = None,
+    security_summary: dict | None = None,
+) -> None:
     """POST to MS1 webhook signalling the analysis job completed successfully."""
-    await _send(db_job_id, "COMPLETED", None)
+    await _send(
+        db_job_id, "COMPLETED", None,
+        plan_summary=plan_summary,
+        execution_summary=execution_summary,
+        security_summary=security_summary,
+    )
+
+
+async def notify_job_running(job_id: str, db_job_id: str) -> None:
+    """POST to MS1 webhook signalling the analysis job is now running."""
+    await _send(db_job_id, "RUNNING", None)
 
 
 async def notify_job_failed(job_id: str, db_job_id: str, error: str) -> None:
@@ -27,11 +43,24 @@ async def notify_job_failed(job_id: str, db_job_id: str, error: str) -> None:
     await _send(db_job_id, "FAILED", error)
 
 
-async def _send(db_job_id: str, status: str, error: str | None) -> None:
+async def _send(
+    db_job_id: str,
+    status: str,
+    error: str | None,
+    plan_summary: dict | None = None,
+    execution_summary: dict | None = None,
+    security_summary: dict | None = None,
+) -> None:
     url = f"{MS1_WEBHOOK_URL}/job-complete"
     payload = {"jobId": db_job_id, "status": status}
     if error:
         payload["error"] = error
+    if plan_summary:
+        payload["planSummary"] = plan_summary
+    if execution_summary:
+        payload["executionSummary"] = execution_summary
+    if security_summary:
+        payload["securitySummary"] = security_summary
 
     headers = {
         "Content-Type": "application/json",

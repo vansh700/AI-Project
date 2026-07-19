@@ -1,63 +1,59 @@
-Document
+# Queue Flow
 
-Queue name
+## Analysis Queue
 
-Producer
+| Property | Value |
+|----------|-------|
+| Queue name | `analysis-queue` |
+| Producer | MS1 (`analysis.service.ts` → BullMQ) |
+| Consumer | MS2 Worker (`ms2/app/queue/worker.py`) |
+| Retry | 3 attempts, exponential backoff (5s base) |
+| Dead Letter | BullMQ default (failed after retries) |
 
-Consumer
+### Job Payload
 
-Retry policy
+```json
+{
+  "jobId": "AnalysisJob.id",
+  "projectId": "Project.id",
+  "storagePath": "/path/to/uploaded.zip",
+  "userId": "User.id"
+}
+```
 
-Concurrency
+### MS2 Worker Pipeline (Phase 9)
 
-Dead Letter Queue
+```
+1. POST RUNNING webhook to MS1
+2. Extract zip archive
+3. Walk repository file tree
+4. Build Neo4j knowledge graph
+5. Run AI planner (LangGraph)
+6. Execute test plan in Docker sandbox
+7. Run dynamic security scan
+8. POST COMPLETED webhook to MS1 (planSummary + executionSummary + securitySummary)
+9. MS1 builds reportSummary and emits WebSocket job_updated
+10. Clean up temp directory
+```
 
-Job payload
+### Job Lifecycle (MS1)
 
-Job lifecycle
+```
+QUEUED → (worker picks up) → RUNNING → COMPLETED
+                                      ↘ FAILED
+```
 
+### Webhook Callback
 
-example:
-Analysis Queue
+MS2 sends `POST /webhooks/job-complete` to MS1 with:
+- `jobId`, `status` (RUNNING at start, COMPLETED at end)
+- `planSummary`, `executionSummary`, `securitySummary`
 
-Producer
+MS1 updates `AnalysisJob`, builds `reportSummary` on COMPLETED, emits WebSocket `job_updated`.
 
-MS1
+### Failure Handling
 
-Consumer
-
-MS2 Worker
-
-Payload
-
-Job ID
-
-Repository
-
-User ID
-
-Priority
-
-Retry
-
-3
-
-Backoff
-
-Exponential
-
-Status Flow
-
-Queued
-
-↓
-
-Running
-
-↓
-
-Completed
-
-↓
-
-Failed
+- Planner failure: logged, job continues without `planSummary`
+- Execution failure: logged, job continues without `executionSummary`
+- Security scan failure: logged, job continues without `securitySummary`
+- Pipeline failure (extract/graph): job marked `FAILED`, webhook sent with error

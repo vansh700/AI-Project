@@ -94,3 +94,74 @@ Every file in the project is registered here. No exceptions.
 | `ms2/app/services/webhook.py` | Phase 5 | Sends async completion callbacks back to MS1 | `worker.py` | `aiohttp` | `notify_job_complete`, `notify_job_failed` | — | YES |
 | `ms1/src/modules/webhook/webhook.controller.ts` | Phase 5 | MS1 handler processing MS2 status callback webhooks | `webhook.routes.ts` | `prisma.client.ts` | `handleJobComplete` | POST /webhooks/job-complete | YES |
 | `ms1/src/modules/webhook/webhook.routes.ts` | Phase 5 | Webhook router registration | `app.ts` | `webhook.controller.ts` | `webhookRoutes` | /webhooks/* | YES |
+
+---
+
+## Phase 6 — AI Planning (LangGraph)
+
+| File | Created | Purpose | Imported By | Depends On | Exports | Related APIs | Safe To Modify |
+|------|---------|---------|-------------|------------|---------|--------------|----------------|
+| `ms2/app/planner/__init__.py` | Phase 6 | Python package marker | — | — | — | — | NO |
+| `ms2/app/planner/coordinator.py` | Phase 6 | Entry point — runs LangGraph and persists plan | `worker.py` | `graph.py`, `planner_repository.py` | `run_planner` | — | LOW RISK |
+| `ms2/app/planner/graph.py` | Phase 6 | LangGraph StateGraph assembly (intake→context→plan→reflect) | `coordinator.py` | `nodes.py`, `state.py` | `get_planner_graph` | — | LOW RISK |
+| `ms2/app/planner/state.py` | Phase 6 | TypedDict schema for shared planner graph state | `graph.py`, `nodes.py` | — | `PlannerAgentState` | — | YES |
+| `ms2/app/planner/nodes.py` | Phase 6 | LangGraph node functions (intake, context, plan, reflect) | `graph.py` | `neo4j_context.py`, `llm_client.py` | `intake_node`, `context_node`, `plan_node`, `reflect_node` | — | LOW RISK |
+| `ms2/app/planner/llm_client.py` | Phase 6 | OpenAI ChatOpenAI singleton (gpt-4.1 / gpt-4o fallback) | `nodes.py` | `langchain-openai` | `get_llm`, `get_fallback_llm` | — | YES |
+| `ms2/app/planner/neo4j_context.py` | Phase 6 | Fetch and classify Neo4j file nodes for planner context | `nodes.py` | `neo4j_client.py` | `fetch_relevant_subgraph`, `classify_file` | — | YES |
+| `ms2/app/database/__init__.py` | Phase 6 | Python package marker | — | — | — | — | NO |
+| `ms2/app/database/db_client.py` | Phase 6 | Async SQLAlchemy engine and session factory for MS2 DB | `planner_repository.py`, `main.py` | `sqlalchemy`, `asyncpg` | `get_session`, `create_tables`, `close_engine` | — | LOW RISK |
+| `ms2/app/database/models.py` | Phase 6 | SQLAlchemy ORM model for planner state | `planner_repository.py`, `db_client.py` | `sqlalchemy` | `PlannerState`, `Base` | — | YES |
+| `ms2/app/database/planner_repository.py` | Phase 6 | CRUD for PlannerState records | `coordinator.py` | `db_client.py`, `models.py` | `save_plan`, `mark_plan_failed`, `get_plan_by_job_id` | — | YES |
+| `ms1/prisma/migrations/20260716195506_add_plan_summary_to_analysis_job/migration.sql` | Phase 6 | Adds planSummary JSONB column to AnalysisJob | Prisma CLI | — | — | — | NO |
+
+---
+
+## Phase 7 — Secure Runtime Execution
+
+| File | Created | Purpose | Imported By | Depends On | Exports | Related APIs | Safe To Modify |
+|------|---------|---------|-------------|------------|---------|--------------|----------------|
+| `ms2/app/execution/__init__.py` | Phase 7 | Python package marker | — | — | — | — | NO |
+| `ms2/app/execution/coordinator.py` | Phase 7 | Entry point — runs Docker sandbox and persists results | `worker.py` | `docker_runner.py`, `execution_repository.py` | `run_execution` | — | LOW RISK |
+| `ms2/app/execution/docker_runner.py` | Phase 7 | Launches locked-down Docker containers for test validation | `coordinator.py` | `image_selector.py`, `script_builder.py`, `docker` | `run_sandbox`, `is_docker_available` | — | LOW RISK |
+| `ms2/app/execution/image_selector.py` | Phase 7 | Maps repository language to sandbox Docker image | `docker_runner.py` | — | `get_sandbox_image` | — | YES |
+| `ms2/app/execution/script_builder.py` | Phase 7 | Generates shell validation script for sandbox container | `docker_runner.py` | — | `build_validation_script` | — | YES |
+| `ms2/app/database/execution_repository.py` | Phase 7 | CRUD for ExecutionLog records | `coordinator.py` | `db_client.py`, `models.py` | `save_execution`, `mark_execution_failed`, `get_execution_by_job_id` | — | YES |
+| `ms1/prisma/migrations/20260717030000_add_execution_summary_to_analysis_job/migration.sql` | Phase 7 | Adds executionSummary JSONB column to AnalysisJob | Prisma CLI | — | — | — | NO |
+
+---
+
+## Phase 8 — Dynamic Security Testing
+
+| File | Created | Purpose | Imported By | Depends On | Exports | Related APIs | Safe To Modify |
+|------|---------|---------|-------------|------------|---------|--------------|----------------|
+| `ms2/app/security/__init__.py` | Phase 8 | Python package marker | — | — | — | — | NO |
+| `ms2/app/security/coordinator.py` | Phase 8 | Entry point — runs security scans and persists findings | `worker.py` | `pattern_scanner.py`, `sensitive_file_scanner.py`, `auth_probe.py`, `security_repository.py` | `run_security_scan` | — | LOW RISK |
+| `ms2/app/security/rule_engine.py` | Phase 8 | Security rule definitions (secrets, SQLi, eval, CORS, JWT) | `pattern_scanner.py`, `sensitive_file_scanner.py` | — | `RULES`, `SENSITIVE_FILES`, `SecurityRule` | — | YES |
+| `ms2/app/security/pattern_scanner.py` | Phase 8 | Static pattern-based vulnerability scanner | `coordinator.py` | `rule_engine.py` | `scan_files` | — | YES |
+| `ms2/app/security/sensitive_file_scanner.py` | Phase 8 | Detects committed sensitive files (.env, keys) | `coordinator.py` | `rule_engine.py` | `scan_sensitive_files` | — | YES |
+| `ms2/app/security/auth_probe.py` | Phase 8 | Dynamic auth-coverage probe for route/controller files | `coordinator.py` | — | `probe_auth_coverage` | — | YES |
+| `ms2/app/database/security_repository.py` | Phase 8 | CRUD for SecurityLog records | `coordinator.py` | `db_client.py`, `models.py` | `save_security_scan`, `mark_security_failed`, `get_security_by_job_id` | — | YES |
+| `ms1/prisma/migrations/20260717040000_add_security_summary_to_analysis_job/migration.sql` | Phase 8 | Adds securitySummary JSONB column to AnalysisJob | Prisma CLI | — | — | — | NO |
+
+---
+
+## Phase 9 — Reports & Real-Time Frontend
+
+| File | Created | Purpose | Imported By | Depends On | Exports | Related APIs | Safe To Modify |
+|------|---------|---------|-------------|------------|---------|--------------|----------------|
+| `ms1/src/modules/report/report.service.ts` | Phase 9 | Builds unified reportSummary from job summaries | `analysis.service.ts`, `webhook.controller.ts` | — | `buildReportSummary`, `ReportSummary` | GET /projects/:id/analysis/:jobId/report | YES |
+| `ms1/src/modules/websocket/websocket.gateway.ts` | Phase 9 | WebSocket server and job update emitter | `server.ts`, `analysis.service.ts`, `webhook.controller.ts` | `ws`, `jsonwebtoken` | `initWebSocket`, `emitJobUpdate` | WS /ws | LOW RISK |
+| `ms1/prisma/migrations/20260717050000_add_report_summary_to_analysis_job/migration.sql` | Phase 9 | Adds reportSummary JSONB column to AnalysisJob | Prisma CLI | — | — | — | NO |
+| `frontend/src/api/client.ts` | Phase 9 | Base fetch wrapper with JWT auth | All frontend API modules | — | `apiFetch`, `getToken`, `setToken` | — | YES |
+| `frontend/src/api/auth.api.ts` | Phase 9 | Login/register API calls | `LoginPage.tsx` | `client.ts` | `login`, `register` | POST /auth/* | YES |
+| `frontend/src/api/project.api.ts` | Phase 9 | Project CRUD and upload API calls | `DashboardPage.tsx`, `ProjectPage.tsx` | `client.ts` | `listProjects`, `createProject`, `getProject`, `uploadRepository` | /projects/* | YES |
+| `frontend/src/api/analysis.api.ts` | Phase 9 | Analysis trigger, list, report API calls | `ProjectPage.tsx` | `client.ts` | `listJobs`, `triggerAnalysis`, `getJob`, `getReport` | /projects/:id/analysis/* | YES |
+| `frontend/src/types/api.types.ts` | Phase 9 | Shared TypeScript types for API responses | Frontend pages/components | — | `Project`, `AnalysisJob`, `ReportSummary` | — | YES |
+| `frontend/src/context/AuthContext.tsx` | Phase 9 | Auth state provider | `App.tsx`, pages | `client.ts` | `AuthProvider`, `useAuth` | — | YES |
+| `frontend/src/hooks/useJobSocket.ts` | Phase 9 | WebSocket hook for real-time job updates | `ProjectPage.tsx` | — | `useJobSocket` | WS /ws | YES |
+| `frontend/src/pages/LoginPage.tsx` | Phase 9 | Login/register screen | `App.tsx` | `auth.api.ts` | `LoginPage` | — | YES |
+| `frontend/src/pages/DashboardPage.tsx` | Phase 9 | Project list and create screen | `App.tsx` | `project.api.ts` | `DashboardPage` | — | YES |
+| `frontend/src/pages/ProjectPage.tsx` | Phase 9 | Upload, analyze, live status, report view | `App.tsx` | `project.api.ts`, `analysis.api.ts`, `useJobSocket` | `ProjectPage` | — | YES |
+| `frontend/src/components/JobStatusBadge.tsx` | Phase 9 | Colored status badge for jobs | `ProjectPage.tsx`, `ReportView.tsx` | — | `JobStatusBadge` | — | YES |
+| `frontend/src/components/ReportView.tsx` | Phase 9 | Renders unified analysis report | `ProjectPage.tsx` | — | `ReportView` | — | YES |
+| `frontend/src/index.css` | Phase 9 | Global styles for frontend UI | `main.tsx` | — | — | — | YES |

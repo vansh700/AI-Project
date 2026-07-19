@@ -6,12 +6,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // All /api/* requests from the frontend are forwarded to MS1.
-      // The frontend never calls MS2 directly — this enforces the architecture invariant.
       '/api': {
         target: 'http://localhost:3000',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/ws': {
+        target: 'ws://localhost:3000',
+        ws: true,
       },
     },
   },

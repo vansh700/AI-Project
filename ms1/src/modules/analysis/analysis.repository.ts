@@ -13,3 +13,9 @@ export async function findJobsByProject(projectId: string): Promise<AnalysisJob[
     orderBy: { createdAt: 'desc' },
   });
 }
+
+export async function findJobById(jobId: string, projectId: string): Promise<AnalysisJob | null> {
+  return prisma.analysisJob.findFirst({
+    where: { id: jobId, projectId },
+  });
+}

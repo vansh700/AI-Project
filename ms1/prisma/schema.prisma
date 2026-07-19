@@ -29,10 +29,14 @@ model Project {
 }
 
 model AnalysisJob {
-  id        String   @id @default(cuid())
-  status    String   @default("QUEUED")
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  status      String   @default("QUEUED")
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id])
+  planSummary Json?
+  executionSummary Json?
+  securitySummary  Json?
+  reportSummary    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

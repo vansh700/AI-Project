@@ -1,53 +1,140 @@
-Endpoint
+# API Reference
 
-POST /analysis
+## MS1 — Public APIs
 
-Purpose
+### POST /auth/register
 
-Creates analysis job.
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | None |
+| Body | `{ "email": string, "password": string }` |
+| Response | `201` — `{ "token": string }` |
 
-Owner
+### POST /auth/login
 
-MS1
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | None |
+| Body | `{ "email": string, "password": string }` |
+| Response | `200` — `{ "token": string }` |
 
-Authentication
+### POST /projects
 
-Required
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Body | `{ "name": string, "repoUrl": string }` |
+| Response | `201` — `{ "project": Project }` |
 
-Request
+### GET /projects
 
-{}
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Response | `200` — `{ "projects": Project[] }` |
 
-Response
+### GET /projects/:id
 
-{}
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Response | `200` — `{ "project": Project }` |
 
-Possible Errors
+### POST /projects/:id/upload
 
-400
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Body | `multipart/form-data` — `file` (.zip) |
+| Response | `200` — `{ "project": Project }` |
 
-401
+### POST /projects/:id/analysis
 
-404
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Response | `202` — `{ "job": AnalysisJob }` |
 
-500
+### GET /projects/:id/analysis
 
-Internal Flow
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Response | `200` — `{ "jobs": AnalysisJob[] }` |
 
-Frontend
+**AnalysisJob fields**:
+```json
+{
+  "id": "string",
+  "status": "QUEUED | RUNNING | COMPLETED | FAILED",
+  "projectId": "string",
+  "planSummary": "JSON | null",
+  "executionSummary": "JSON | null",
+  "securitySummary": "JSON | null",
+  "reportSummary": "JSON | null",
+  "createdAt": "ISO8601",
+  "updatedAt": "ISO8601"
+}
+```
 
-↓
+---
 
-MS1 Controller
+## MS1 — Internal APIs
 
-↓
+### POST /webhooks/job-complete
 
-Analysis Service
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | `X-Webhook-Secret` header |
+| Caller | MS2 only |
+| Body | `{ "jobId", "status", "error?", "planSummary?", "executionSummary?", "securitySummary?" }` |
+| Response | `200` — `{ "job": AnalysisJob }` |
 
-↓
+### GET /projects/:id/analysis/:jobId
 
-BullMQ
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Response | `200` — `{ "job": AnalysisJob }` |
 
-↓
+### GET /projects/:id/analysis/:jobId/report
 
-Return Job ID
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | Bearer JWT |
+| Response | `200` — `{ "report": ReportSummary }` |
+
+**ReportSummary fields**: `generatedAt`, `jobId`, `projectId`, `status`, `overview`, `plan`, `execution`, `security`
+
+---
+
+## MS1 — WebSocket
+
+### WS /ws?token=\<JWT\>
+
+| Field | Value |
+|-------|-------|
+| Owner | MS1 |
+| Auth | JWT in query param |
+| Events | `connected`, `job_updated` |
+| Payload | `{ "event": "job_updated", "job": AnalysisJob }` |
+
+---
+
+MS2 has no public business APIs. Only `GET /health` is exposed.
+
+Worker pipeline produces data sent to MS1 via webhook:
+- `planSummary` — Phase 6
+- `executionSummary` — Phase 7
+- `securitySummary` — Phase 8

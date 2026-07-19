@@ -55,7 +55,15 @@ sequenceDiagram
     MS2->>MS2: Walk File Tree (Pruning .git, node_modules)
     MS2->>Neo4j: Clear old graph for Job ID
     MS2->>Neo4j: Build Graph (Repository, Directory, File Nodes & Relationships)
-    MS2->>MS1: POST /webhooks/job-complete (Job ID, status="COMPLETED" + Secret)
+    MS2->>Neo4j: Fetch classified file subgraph for AI planner
+    MS2->>MS2: Run LangGraph planner (intake → context → plan → reflect)
+    MS2->>MS2: Persist plan to MS2 PostgreSQL (planner_states)
+    MS2->>Docker: Launch sandbox container (no network, read-only)
+    Docker->>Docker: Validate test-case targets (syntax + file checks)
+    MS2->>MS2: Persist execution results to MS2 PostgreSQL (execution_logs)
+    MS2->>MS2: Run dynamic security scan (pattern + sensitive file + auth probe)
+    MS2->>MS2: Persist security findings to MS2 PostgreSQL (security_logs)
+    MS2->>MS1: POST /webhooks/job-complete (Job ID, status="COMPLETED", planSummary + executionSummary + securitySummary + Secret)
     deactivate MS2
     MS1->>MS1: Verify X-Webhook-Secret header
     MS1->>Postgres: Update AnalysisJob status to "COMPLETED"
@@ -80,7 +88,7 @@ All requests to MS1 business endpoints (Projects and Analysis) require a valid b
 | **MS1** | `POST` | `/projects/:id/upload` | Required | Multipart Form Data (`file` field) | `200 OK` (returns updated `project`) | Upload repository ZIP file |
 | **MS1** | `POST` | `/projects/:id/analysis` | Required | None | `202 Accepted` (returns `job`) | Create job & push to queue |
 | **MS1** | `GET` | `/projects/:id/analysis` | Required | None | `200 OK` (returns list of `jobs`) | Check job status in database |
-| **MS1** | `POST` | `/webhooks/job-complete` | Internal | `{"jobId", "status", "error"}` | `200 OK` (returns updated `job`) | Webhook callback to update status |
+| **MS1** | `POST` | `/webhooks/job-complete` | Internal | `{"jobId", "status", "error?", "planSummary?", "executionSummary?", "securitySummary?"}` | `200 OK` (returns updated `job`) | Webhook callback to update status |
 
 ---
 

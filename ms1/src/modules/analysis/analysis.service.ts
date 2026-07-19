@@ -1,7 +1,9 @@
 import { AnalysisJob } from '@prisma/client';
 import { getProjectDetail } from '../project/project.service';
-import { createAnalysisJob, findJobsByProject } from './analysis.repository';
+import { createAnalysisJob, findJobsByProject, findJobById } from './analysis.repository';
 import { analysisQueue } from '../../config/queue';
+import { buildReportSummary, ReportSummary } from '../report/report.service';
+import { emitJobUpdate } from '../websocket/websocket.gateway';
 
 export interface AnalysisJobPayload {
   jobId: string;
@@ -36,11 +38,37 @@ export async function triggerAnalysis(projectId: string, userId: string): Promis
     backoff: { type: 'exponential', delay: 5000 },
   });
 
+  emitJobUpdate(userId, { event: 'job_updated', job });
+
   return job;
 }
 
 export async function getAnalysisJobs(projectId: string, userId: string): Promise<AnalysisJob[]> {
-  // Verify ownership before exposing job data
   await getProjectDetail(projectId, userId);
   return findJobsByProject(projectId);
+}
+
+export async function getAnalysisJob(
+  projectId: string,
+  jobId: string,
+  userId: string,
+): Promise<AnalysisJob> {
+  await getProjectDetail(projectId, userId);
+  const job = await findJobById(jobId, projectId);
+  if (!job) {
+    throw Object.assign(new Error('Analysis job not found'), { statusCode: 404 });
+  }
+  return job;
+}
+
+export async function getJobReport(
+  projectId: string,
+  jobId: string,
+  userId: string,
+): Promise<ReportSummary> {
+  const job = await getAnalysisJob(projectId, jobId, userId);
+  if (job.reportSummary) {
+    return job.reportSummary as unknown as ReportSummary;
+  }
+  return buildReportSummary(job);
 }
